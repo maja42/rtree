@@ -48,10 +48,11 @@ func (r *RTree) Search(area vmath.Rectf, mustCover bool) []Item {
 	return items
 }
 
-// Search returns all items within the area that are not filtered.
+// SearchFiltered returns all items within the area that are filtered.
+// If 'filter' returns false, the item is discarded.
 // If mustCover is true, items are only returned if they are fully within the search area.
 // If false, items are returned if they intersect the search area.
-func (r *RTree) FilteredSearch(area vmath.Rectf, mustCover bool, filter FilterFunc) []Item {
+func (r *RTree) SearchFiltered(area vmath.Rectf, mustCover bool, filter FilterFunc) []Item {
 	area = area.Normalize()
 	if !area.Intersects(r.root.bounds) {
 		return nil

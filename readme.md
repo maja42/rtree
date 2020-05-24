@@ -1,4 +1,5 @@
-# rtree
+# rtree [![GoDoc](https://godoc.org/github.com/maja42/rtree?status.svg)](https://godoc.org/github.com/maja42/rtree)
+
 
 rtree is a high-performance go library for spatial indexing of points and rectangles.
 It allows queries like "all items within this bounding box" very efficiently.
@@ -6,9 +7,11 @@ It allows queries like "all items within this bounding box" very efficiently.
 
 ## Visualization
 **Inserting items**
-![Item insertion](insert.gif "Item insertion")
+
+![Item insertion](insert.gif)
 
 **Searching and deleting items**
+
 ![Item deletion](delete.gif "Item deletion")
 
 ## R-Trees
@@ -19,16 +22,10 @@ While doing so, the split strategy tries to keep the area of those boxes as smal
 This has two implications. First, the bounding boxes are allowed to overlap.
 Secondly, R-trees might leave empty areas uncovered.
 
-![R-Tree](rtree.png "R-Tree")
+![R-Tree](rtree.png)
 
 R-trees are dynamic data structures that guarantee a balanced search tree and are therefore ideal for changing geometry. 
 In contrast to k-d and BSP-trees, which can only hold points, R-trees are designed to store rectangles and polygons without requiring additional logic.
-
-## Usage
-TBD
-
-## Demo
-TBD
 
 ## Used Algorithms
 

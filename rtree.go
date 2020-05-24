@@ -8,26 +8,31 @@ import (
 	"github.com/maja42/vmath"
 )
 
-type RTree struct {
-	maxEntries, minEntries int // #entries within a single node
-	root                   *node
+type Item interface {
+	//	Bounds() vmath.Rectf
 }
 
-type Item interface {
-	Bounds() vmath.Rectf
-}
+type BoundsFunc func(item interface{}) vmath.Rectf
 
 type EqualsFunc func(a, b Item) bool
 
-func New(maxEntries int) *RTree {
+type RTree struct {
+	maxEntries, minEntries int // #entries within a single node
+	bboxFn                 BoundsFunc
+	root                   *node
+}
+
+// New creates a new, empty RTree for storing and querying 2D rectangles and points.
+func New(boundsFunc BoundsFunc, maxEntries int) *RTree {
 	if maxEntries <= 0 {
-		// 16 entries provides the best performance and lowest memory overhead
+		// 16 entries for best performance and lowest memory overhead
 		maxEntries = 16
 	}
 	maxEntries = vmath.Maxi(4, maxEntries)
 
 	// min node fill is 40% for best performance
 	r := &RTree{
+		bboxFn:     boundsFunc,
 		maxEntries: maxEntries,
 		minEntries: vmath.Maxi(2, int(vmath.Ceil(float32(maxEntries)*0.4))),
 	}
@@ -43,7 +48,7 @@ func (r *RTree) Clear() *RTree {
 
 // Insert adds a single item.
 func (r *RTree) Insert(item Item) *RTree {
-	bbox := item.Bounds()
+	bbox := r.bboxFn(item)
 	level := r.root.height - 1
 
 	// determine best leaf node for new item and the path to get there
@@ -94,7 +99,7 @@ func (r *RTree) BulkLoad(items []Item) *RTree {
 // Remove the given item from the tree.
 // equalsFn is optional. It is useful if you only have a copy of the originally inserted item.
 func (r *RTree) Remove(item Item, equalsFn EqualsFunc) *RTree {
-	bbox := item.Bounds()
+	bbox := r.bboxFn(item)
 
 	var path []*node       // path to current node from top->bottom
 	var childIndexes []int // last processed childIdx for each node on the path
@@ -181,7 +186,7 @@ func (r *RTree) build(items []Item, left, right, height int) *node {
 	if count <= max { // create leaf
 		node := newNode()
 		node.items = append(node.items, items[left:right+1]...)
-		calcBBox(node)
+		calcBBox(node, r.bboxFn)
 		return node
 	}
 
@@ -202,7 +207,7 @@ func (r *RTree) build(items []Item, left, right, height int) *node {
 	grpY := int(math.Ceil(count / max))
 	grpX := grpY * int(math.Ceil(math.Sqrt(max)))
 
-	groupItems(items, left, right, grpX, true)
+	groupItems(items, left, right, grpX, true, r.bboxFn)
 
 	var wg sync.WaitGroup
 	var m sync.Mutex
@@ -214,7 +219,7 @@ func (r *RTree) build(items []Item, left, right, height int) *node {
 
 			right2 := vmath.Mini(i+grpX-1, right)
 			// sort group [i, right2] again, but now by y
-			groupItems(items, i, right2, grpY, false)
+			groupItems(items, i, right2, grpY, false, r.bboxFn)
 
 			for j := i; j <= right2; j += grpY {
 				right3 := vmath.Mini(j+grpY-1, right2)
@@ -227,7 +232,7 @@ func (r *RTree) build(items []Item, left, right, height int) *node {
 		}(i)
 	}
 	wg.Wait()
-	calcBBox(node)
+	calcBBox(node, r.bboxFn)
 	return node
 }
 
@@ -295,8 +300,8 @@ func (r *RTree) split(insertPath []*node, level int) {
 		node.children = node.children[:splitIndex]
 	}
 
-	calcBBox(node)
-	calcBBox(newNode)
+	calcBBox(node, r.bboxFn)
+	calcBBox(newNode, r.bboxFn)
 
 	if level > 0 {
 		insertPath[level-1].children = append(insertPath[level-1].children, newNode)
@@ -313,7 +318,7 @@ func (r *RTree) splitRoot(a, b *node) {
 
 	r.root.height = newHeight
 	r.root.leaf = false
-	calcBBox(r.root)
+	calcBBox(r.root, r.bboxFn)
 }
 
 // chooseSplitIndex finds the index at which the nodes' children should be split.
@@ -325,8 +330,8 @@ func (r *RTree) chooseSplitIndex(node *node, min, count int) int {
 
 	idx := count - min // default index = maximum
 	for i := min; i <= count-min; i++ {
-		bbox1 := calcSubBBox(node, 0, i)
-		bbox2 := calcSubBBox(node, i, count)
+		bbox1 := calcSubBBox(node, 0, i, r.bboxFn)
+		bbox2 := calcSubBBox(node, i, count, r.bboxFn)
 
 		overlap := intersectionArea(bbox1, bbox2)
 		area := bbox1.Area() + bbox2.Area()
@@ -352,8 +357,8 @@ func (r *RTree) chooseSplitAxis(nod *node, min, max int) {
 	// determine sorting algorithm for each axis:
 	var sortMinX, sortMinY sort.Interface
 	if nod.leaf {
-		sortMinX = itemsByMinX(nod.items)
-		sortMinY = itemsByMinY(nod.items)
+		sortMinX = itemsByMinX{nod.items, r.bboxFn}
+		sortMinY = itemsByMinY{nod.items, r.bboxFn}
 	} else {
 		sortMinX = nodesByMinX(nod.children)
 		sortMinY = nodesByMinY(nod.children)
@@ -374,15 +379,15 @@ func (r *RTree) chooseSplitAxis(nod *node, min, max int) {
 // allDistMargin calculates the total margin of all possible split distributions, where each node is at least min full
 // The result can be used as a heuristic to determine how to split nodes.
 func (r *RTree) allDistMargin(nod *node, min, max int) float32 {
-	leftBBox := calcSubBBox(nod, 0, min)
-	rightBBox := calcSubBBox(nod, max-min, max)
+	leftBBox := calcSubBBox(nod, 0, min, r.bboxFn)
+	rightBBox := calcSubBBox(nod, max-min, max, r.bboxFn)
 
 	margin := bboxMargin(leftBBox) + bboxMargin(rightBBox)
 
 	for i := min; i < max-min; i++ {
 		if nod.leaf {
 			child := nod.items[i]
-			extend(&leftBBox, child.Bounds())
+			extend(&leftBBox, r.bboxFn(child))
 		} else {
 			child := nod.children[i]
 			extend(&leftBBox, child.bounds)
@@ -393,7 +398,7 @@ func (r *RTree) allDistMargin(nod *node, min, max int) float32 {
 	for i := max - min - 1; i >= min; i-- {
 		if nod.leaf {
 			child := nod.items[i]
-			extend(&rightBBox, child.Bounds())
+			extend(&rightBBox, r.bboxFn(child))
 		} else {
 			child := nod.children[i]
 			extend(&rightBBox, child.bounds)
@@ -423,7 +428,7 @@ func (r *RTree) condense(path []*node) {
 				r.Clear()
 			}
 		} else {
-			calcBBox(item)
+			calcBBox(item, r.bboxFn)
 		}
 	}
 }
@@ -460,7 +465,7 @@ func removeChildNode(parent, child *node) {
 // The groups are sorted between each other.
 // If xDim is true, the MinX position is used for sorting, otherwise MinY is used.
 // Combines quickselect with a non-recursive divide & conquer algorithm.
-func groupItems(items []Item, leftIdx, rightIdx, groupSize int, xDim bool) {
+func groupItems(items []Item, leftIdx, rightIdx, groupSize int, xDim bool, bboxFn BoundsFunc) {
 	stack := []int{leftIdx, rightIdx}
 	for len(stack) > 0 {
 		rightIdx, leftIdx = popInt(&stack), popInt(&stack)
@@ -473,13 +478,13 @@ func groupItems(items []Item, leftIdx, rightIdx, groupSize int, xDim bool) {
 		groups := float64(size) / float64(groupSize)
 		pivot := int(math.Ceil(groups/2)) * groupSize // center group
 		if xDim {
-			//quickselectFloyd(itemsByMinX(items[leftIdx:rightIdx+1]), pivot)
-			quickselect(itemsByMinX(items[leftIdx:rightIdx+1]), pivot)
-			//nth.Element(itemsByMinX(items[leftIdx:rightIdx+1]), pivot)
+			//quickselectFloyd(itemsByMinX{items[leftIdx:rightIdx+1], bboxFn}, pivot)
+			quickselect(itemsByMinX{items[leftIdx : rightIdx+1], bboxFn}, pivot)
+			//nth.Element(itemsByMinX{items[leftIdx:rightIdx+1], bboxFn}, pivot)
 		} else {
-			//quickselectFloyd(itemsByMinY(items[leftIdx:rightIdx+1]), pivot)
-			quickselect(itemsByMinY(items[leftIdx:rightIdx+1]), pivot)
-			//nth.Element(itemsByMinY(items[leftIdx:rightIdx+1]), pivot)
+			//quickselectFloyd(itemsByMinY{items[leftIdx:rightIdx+1], bboxFn}, pivot)
+			quickselect(itemsByMinY{items[leftIdx : rightIdx+1], bboxFn}, pivot)
+			//nth.Element(itemsByMinY{items[leftIdx:rightIdx+1], bboxFn}, pivot)
 		}
 		pivot += leftIdx
 		// repeat on the left and right side of the pivot point
@@ -504,16 +509,16 @@ func popInt(ints *[]int) int {
 }
 
 // calculate node's bbox from bboxes of its children
-func calcBBox(node *node) {
-	node.bounds = calcSubBBox(node, 0, len(node.children)+len(node.items))
+func calcBBox(node *node, bboxFn BoundsFunc) {
+	node.bounds = calcSubBBox(node, 0, len(node.children)+len(node.items), bboxFn)
 }
 
 // calcSubBBox calculates the bbox for all entries in slice [start:end].
-func calcSubBBox(node *node, start, end int) vmath.Rectf {
+func calcSubBBox(node *node, start, end int, bboxFn BoundsFunc) vmath.Rectf {
 	bbox := noBounds
 	if node.leaf {
 		for _, item := range node.items[start:end] {
-			extend(&bbox, item.Bounds())
+			extend(&bbox, bboxFn(item))
 		}
 	} else {
 		for _, child := range node.children[start:end] {

@@ -29,7 +29,7 @@ func BenchmarkSearch(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		item := items[rand.Intn(len(items))]
-		_ = tree.Search(item.Bounds(), false)
+		_ = tree.Search(item.(*testItem).bounds, false)
 	}
 }
 
@@ -42,7 +42,9 @@ func BenchmarkRemove(b *testing.B) {
 }
 
 func newPrePopulatedTree(size int) (*RTree, []Item) {
-	tree := New(0)
+	tree := New(func(item interface{}) vmath.Rectf {
+		return item.(*testItem).bounds
+	}, 0)
 	items := make([]Item, size)
 	for i := 0; i < size; i++ {
 		items[i] = randomItem()

@@ -50,8 +50,8 @@ func (r *RTree) Search(area vmath.Rectf, mustCover bool) []Item {
 			}
 		}
 		for _, item := range node.items {
-			if (mustCover && area.ContainsRectf(item.Bounds())) ||
-				(!mustCover && area.Intersects(item.Bounds())) {
+			if (mustCover && area.ContainsRectf(r.bboxFn(item))) ||
+				(!mustCover && area.Intersects(r.bboxFn(item))) {
 				items = append(items, item)
 			}
 		}
@@ -81,7 +81,7 @@ func (r *RTree) Collides(area vmath.Rectf) bool {
 			}
 		}
 		for _, item := range node.items {
-			if area.Intersects(item.Bounds()) {
+			if area.Intersects(r.bboxFn(item)) {
 				return true
 			}
 		}

@@ -12,17 +12,6 @@ func (r *RTree) All() []Item {
 	return items
 }
 
-func (r *RTree) addAllItems(root *node, items *[]Item) {
-	nodesToSearch := make([]*node, 1)
-	nodesToSearch[0] = root
-	for len(nodesToSearch) > 0 {
-		node := popNode(&nodesToSearch)
-
-		*items = append(*items, node.items...)
-		nodesToSearch = append(nodesToSearch, node.children...)
-	}
-}
-
 // Search returns all items within the area.
 // If mustCover is true, items are only returned if they are fully within the search area.
 // If false, items are returned if they intersect the search area.
@@ -59,8 +48,74 @@ func (r *RTree) Search(area vmath.Rectf, mustCover bool) []Item {
 	return items
 }
 
-// Collides returns true if there are any items intersecting with the area.
-func (r *RTree) Collides(area vmath.Rectf) bool {
+// Search returns all items within the area that are not filtered.
+// If mustCover is true, items are only returned if they are fully within the search area.
+// If false, items are returned if they intersect the search area.
+func (r *RTree) FilteredSearch(area vmath.Rectf, mustCover bool, filter FilterFunc) []Item {
+	area = area.Normalize()
+	if !area.Intersects(r.root.bounds) {
+		return nil
+	}
+
+	var items []Item
+
+	nodesToSearch := make([]*node, 1)
+	nodesToSearch[0] = r.root
+	for len(nodesToSearch) > 0 {
+		node := popNode(&nodesToSearch)
+
+		for _, child := range node.children {
+			if !area.Intersects(child.bounds) {
+				continue
+			}
+			if area.ContainsRectf(child.bounds) {
+				r.addAllFilteredItems(child, &items, filter)
+			} else {
+				nodesToSearch = append(nodesToSearch, child)
+			}
+		}
+		for _, item := range node.items {
+			if !filter(item) {
+				continue
+			}
+			if (mustCover && area.ContainsRectf(item.Bounds())) ||
+				(!mustCover && area.Intersects(item.Bounds())) {
+				items = append(items, item)
+			}
+		}
+	}
+	return items
+}
+
+func (r *RTree) addAllItems(root *node, items *[]Item) {
+	nodesToSearch := make([]*node, 1)
+	nodesToSearch[0] = root
+	for len(nodesToSearch) > 0 {
+		node := popNode(&nodesToSearch)
+
+		*items = append(*items, node.items...)
+		nodesToSearch = append(nodesToSearch, node.children...)
+	}
+}
+
+func (r *RTree) addAllFilteredItems(root *node, items *[]Item, filter FilterFunc) {
+	nodesToSearch := make([]*node, 1)
+	nodesToSearch[0] = root
+	for len(nodesToSearch) > 0 {
+		node := popNode(&nodesToSearch)
+		nodesToSearch = append(nodesToSearch, node.children...)
+
+		for _, item := range node.items {
+			if filter(item) {
+				*items = append(*items, item)
+			}
+		}
+	}
+}
+
+// Intersects returns true if there are any items overlapping with the given area.
+// Touching rectangles where floats are exactly equal are not considered to intersect.
+func (r *RTree) Intersects(area vmath.Rectf) bool {
 	area = area.Normalize()
 	if !area.Intersects(r.root.bounds) {
 		return false
@@ -89,7 +144,7 @@ func (r *RTree) Collides(area vmath.Rectf) bool {
 	return false
 }
 
-// IterateItems calls the provided function for every stored item until true (=abort) is returned.
+// IterateAllItems calls the provided function for every stored item until true (=abort) is returned.
 // The order in which items are iterated is undefined.
 func (r *RTree) IterateItems(fn func(item Item) bool) {
 	nodesToSearch := make([]*node, 1)

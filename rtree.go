@@ -14,22 +14,26 @@ type RTree struct {
 }
 
 type Item interface {
+	// Bounds returns the normalized bounding box of the item.
 	Bounds() vmath.Rectf
 }
 
+// EqualsFunc checks if the two items are identical.
 type EqualsFunc func(a, b Item) bool
 
-func New(maxEntries int) *RTree {
-	if maxEntries <= 0 {
-		// 16 entries provides the best performance and lowest memory overhead
-		maxEntries = 16
-	}
-	maxEntries = vmath.Maxi(4, maxEntries)
+// FilterFunc filters items by arbitrary properties
+type FilterFunc func(item Item) bool
 
+// New creates a new RTree.
+func New() *RTree {
+	// 16 entries provides the best performance and lowest memory overhead
+	maxEntries := 16
 	// min node fill is 40% for best performance
+	minEntries := vmath.Maxi(2, int(vmath.Ceil(float32(maxEntries)*0.4)))
+
 	r := &RTree{
 		maxEntries: maxEntries,
-		minEntries: vmath.Maxi(2, int(vmath.Ceil(float32(maxEntries)*0.4))),
+		minEntries: minEntries,
 	}
 	r.Clear()
 	return r

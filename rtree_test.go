@@ -7,6 +7,8 @@ import (
 	"github.com/maja42/vmath"
 )
 
+const testTreeSize = 10000
+
 type testItem struct {
 	data   []byte
 	bounds vmath.Rectf
@@ -17,7 +19,7 @@ func (i *testItem) Bounds() vmath.Rectf {
 }
 
 func BenchmarkInsert(b *testing.B) {
-	tree, _ := newPrePopulatedTree(10000)
+	tree, _ := newPrePopulatedTree(testTreeSize)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		tree.Insert(randomItem())
@@ -25,11 +27,22 @@ func BenchmarkInsert(b *testing.B) {
 }
 
 func BenchmarkSearch(b *testing.B) {
-	tree, items := newPrePopulatedTree(10000)
+	tree, items := newPrePopulatedTree(testTreeSize)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		item := items[rand.Intn(len(items))]
 		_ = tree.Search(item.Bounds(), false)
+	}
+}
+
+func BenchmarkFilteredSearch(b *testing.B) {
+	tree, items := newPrePopulatedTree(testTreeSize)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		item := items[rand.Intn(len(items))]
+		_ = tree.FilteredSearch(item.Bounds(), false, func(item Item) bool {
+			return true
+		})
 	}
 }
 

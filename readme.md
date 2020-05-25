@@ -1,18 +1,11 @@
 # rtree [![GoDoc](https://godoc.org/github.com/maja42/rtree?status.svg)](https://godoc.org/github.com/maja42/rtree)
 
-
-rtree is a high-performance go library for spatial indexing of points and rectangles.
+rtree is a high-performance go library for spatial indexing of 2D points and rectangles.
 It allows queries like "all items within this bounding box" very efficiently.
 
+The library is optimized for 2D geometry using float32.
 
-## Visualization
-**Inserting items**
 
-![Item insertion](insert.gif)
-
-**Searching and deleting items**
-
-![Item deletion](delete.gif "Item deletion")
 
 ## R-Trees
 R-Trees are a spatial data structure in the same category as QuadTrees, k-d Trees and BSP-Trees. \
@@ -24,8 +17,21 @@ Secondly, R-trees might leave empty areas uncovered.
 
 ![R-Tree](rtree.png)
 
-R-trees are dynamic data structures that guarantee a balanced search tree and are therefore ideal for changing geometry. 
+R-trees are dynamic data structures that guarantee a balanced search tree and are therefore ideal for dynamic geometry. 
 In contrast to k-d and BSP-trees, which can only hold points, R-trees are designed to store rectangles and polygons without requiring additional logic.
+
+
+
+## Visualization
+**Inserting items**
+
+![Item insertion](insert.gif)
+
+**Searching and deleting items**
+
+![Item deletion](delete.gif "Item deletion")
+
+
 
 ## Used Algorithms
 
@@ -40,9 +46,13 @@ In contrast to k-d and BSP-trees, which can only hold points, R-trees are design
     STLT algorithm (Small-Tree-Large-Tree) for tree merging
 - search: 
     standard non-recursive R-tree search
-    
+- nearest neighbour:
+    recursive R-tree search with sub-tree pruning using minmax-distances
+
+
+
 ## Acknowledgements
 
-This library is based on the JavaScript implementation of [rbush](https://github.com/mourner/rbush). \
-However, certain key aspects have been changed to produce better performance in the go language
+Parts of this library are based on the JavaScript implementation [rbush](https://github.com/mourner/rbush). \
+Certain key aspects have been changed to produce better performance in the go language
 and additional functionality has been added.

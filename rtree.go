@@ -53,6 +53,7 @@ func (r *RTree) Clear() *RTree {
 }
 
 // Insert adds a single item.
+// The item's bounds must be normalized and must not change until the item is removed from the tree.
 func (r *RTree) Insert(item Item) *RTree {
 	bbox := item.Bounds()
 	level := r.root.height - 1
@@ -69,15 +70,15 @@ func (r *RTree) Insert(item Item) *RTree {
 	return r
 }
 
-// BulkLoad inserts big root sets at once.
+// BulkLoad inserts big data sets at once.
 //
 // Bulk insertion can be ~5-6 times faster than inserting items one by one.
 // Subsequent search queries are also ~2-3 times faster.
 //
 // Note that when you do bulk insertion into an existing tree,
-// it bulk-loads the given root into a separate tree and inserts the smaller tree into the larger tree.
-// This means that bulk insertion works very well for clustered root (where items in one update are close to each other),
-// but makes query performance worse if the root is scattered.
+// it bulk-loads the given items into a separate tree and inserts the smaller tree into the larger tree.
+// This means that bulk insertion works very well for clustered data (where items in one update are close to each other),
+// but makes query performance worse if the data is scattered.
 func (r *RTree) BulkLoad(items []Item) *RTree {
 	if len(items) < r.minEntries {
 		for _, item := range items {

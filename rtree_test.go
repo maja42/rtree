@@ -40,7 +40,7 @@ func BenchmarkFilteredSearch(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		item := items[rand.Intn(len(items))]
-		_ = tree.FilteredSearch(item.Bounds(), false, func(item Item) bool {
+		_ = tree.SearchFiltered(item.Bounds(), false, func(item Item) bool {
 			return true
 		})
 	}
@@ -55,7 +55,7 @@ func BenchmarkRemove(b *testing.B) {
 }
 
 func newPrePopulatedTree(size int) (*RTree, []Item) {
-	tree := New(0)
+	tree := New()
 	items := make([]Item, size)
 	for i := 0; i < size; i++ {
 		items[i] = randomItem()

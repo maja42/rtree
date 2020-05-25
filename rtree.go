@@ -26,8 +26,15 @@ type FilterFunc func(item Item) bool
 
 // New creates a new RTree.
 func New() *RTree {
-	// 16 entries provides the best performance and lowest memory overhead
-	maxEntries := 16
+	// 16 entries provide good performance and low memory overhead
+	return NewConf(16)
+}
+
+// NewConf creates a new RTree with the given maximum for children-per-node.
+// Higher values mean faster insertion and slower search, and vice versa.
+// The minimum value is 4.
+func NewConf(maxEntries int) *RTree {
+	maxEntries = vmath.Maxi(4, maxEntries)
 	// min node fill is 40% for best performance
 	minEntries := vmath.Maxi(2, int(vmath.Ceil(float32(maxEntries)*0.4)))
 

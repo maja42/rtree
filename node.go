@@ -56,3 +56,12 @@ func (a itemsByMinX) Less(i, j int) bool { return a[i].Bounds().Min[0] < a[j].Bo
 func (a itemsByMinY) Len() int           { return len(a) }
 func (a itemsByMinY) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a itemsByMinY) Less(i, j int) bool { return a[i].Bounds().Min[1] < a[j].Bounds().Min[1] }
+
+type nodesByDistance struct {
+	nodes       []*node
+	sqDistances []float32
+}
+
+func (a nodesByDistance) Len() int           { return len(a.nodes) }
+func (a nodesByDistance) Swap(i, j int)      { a.nodes[i], a.nodes[j] = a.nodes[j], a.nodes[i] }
+func (a nodesByDistance) Less(i, j int) bool { return a.sqDistances[i] < a.sqDistances[j] }

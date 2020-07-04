@@ -6,6 +6,8 @@ import (
 	"sync"
 
 	"github.com/maja42/vmath"
+	"github.com/maja42/vmath/math32"
+	"github.com/maja42/vmath/mathi"
 )
 
 type RTree struct {
@@ -34,9 +36,9 @@ func New() *RTree {
 // Higher values mean faster insertion and slower search, and vice versa.
 // The minimum value is 4.
 func NewConf(maxEntries int) *RTree {
-	maxEntries = vmath.Maxi(4, maxEntries)
+	maxEntries = mathi.Max(4, maxEntries)
 	// min node fill is 40% for best performance
-	minEntries := vmath.Maxi(2, int(vmath.Ceil(float32(maxEntries)*0.4)))
+	minEntries := mathi.Max(2, int(math32.Ceil(float32(maxEntries)*0.4)))
 
 	r := &RTree{
 		maxEntries: maxEntries,
@@ -224,12 +226,12 @@ func (r *RTree) build(items []Item, left, right, height int) *node {
 		go func(i int) {
 			defer wg.Done()
 
-			right2 := vmath.Mini(i+grpX-1, right)
+			right2 := mathi.Min(i+grpX-1, right)
 			// sort group [i, right2] again, but now by y
 			groupItems(items, i, right2, grpY, false)
 
 			for j := i; j <= right2; j += grpY {
-				right3 := vmath.Mini(j+grpY-1, right2)
+				right3 := mathi.Min(j+grpY-1, right2)
 				// group [j, right3] is now nearly square; add it recursively
 				sub := r.build(items, j, right3, height-1)
 				m.Lock()
@@ -258,8 +260,8 @@ func (r *RTree) chooseSubtree(bbox vmath.Rectf, root *node, level int) (*node, [
 			break
 		}
 
-		minArea := vmath.Infinity
-		minEnlargement := vmath.Infinity
+		minArea := math32.Infinity
+		minEnlargement := math32.Infinity
 		var nextSubNode *node
 
 		for _, child := range subNode.children {
@@ -269,7 +271,7 @@ func (r *RTree) chooseSubtree(bbox vmath.Rectf, root *node, level int) (*node, [
 			// choose entry with the least area enlargement
 			if enlargement < minEnlargement {
 				minEnlargement = enlargement
-				minArea = vmath.Min(minArea, area)
+				minArea = math32.Min(minArea, area)
 				nextSubNode = child
 				continue
 			}
@@ -332,8 +334,8 @@ func (r *RTree) splitRoot(a, b *node) {
 // The node's children are already sorted by the ideal split axis.
 // min is the minimum number of entries in a node. count is the current number entries.
 func (r *RTree) chooseSplitIndex(node *node, min, count int) int {
-	minOverlap := vmath.Infinity
-	minArea := vmath.Infinity
+	minOverlap := math32.Infinity
+	minArea := math32.Infinity
 
 	idx := count - min // default index = maximum
 	for i := min; i <= count-min; i++ {
@@ -346,7 +348,7 @@ func (r *RTree) chooseSplitIndex(node *node, min, count int) int {
 		if overlap < minOverlap {
 			// choose distribution with minimum overlap
 			minOverlap = overlap
-			minArea = vmath.Min(area, minArea)
+			minArea = math32.Min(area, minArea)
 			idx = i
 		} else if overlap == minOverlap {
 			// otherwise choose distribution with minimum area
@@ -542,8 +544,8 @@ func intersectionArea(a, b vmath.Rectf) float32 {
 
 // enlargedArea calculates the new area of a bounding box when adding a child.
 func enlargedArea(bbox, newChild vmath.Rectf) float32 {
-	width := vmath.Max(newChild.Max[0], bbox.Max[0]) - vmath.Min(newChild.Min[0], bbox.Min[0])
-	height := vmath.Max(newChild.Max[1], bbox.Max[1]) - vmath.Min(newChild.Min[1], bbox.Min[1])
+	width := math32.Max(newChild.Max[0], bbox.Max[0]) - math32.Min(newChild.Min[0], bbox.Min[0])
+	height := math32.Max(newChild.Max[1], bbox.Max[1]) - math32.Min(newChild.Min[1], bbox.Min[1])
 	return width * height
 }
 

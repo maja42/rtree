@@ -2,16 +2,17 @@ package rtree
 
 import (
 	"github.com/maja42/vmath"
+	"github.com/maja42/vmath/math32"
 )
 
 var noBounds = vmath.Rectf{
 	Min: vmath.Vec2f{
-		vmath.Infinity,
-		vmath.Infinity,
+		math32.Infinity,
+		math32.Infinity,
 	},
 	Max: vmath.Vec2f{
-		vmath.NegInfinity,
-		vmath.NegInfinity,
+		math32.NegInfinity,
+		math32.NegInfinity,
 	},
 }
 

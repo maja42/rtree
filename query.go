@@ -5,6 +5,7 @@ import (
 	"sort"
 
 	"github.com/maja42/vmath"
+	"github.com/maja42/vmath/math32"
 )
 
 const maxInt = math.MaxInt32
@@ -186,7 +187,7 @@ func (r *RTree) Intersects(area vmath.Rectf) bool {
 // NearestNeighbor returns the item that is closest to the given position.
 // Returns nil if the tree is empty.
 func (r *RTree) NearestNeighbor(pos vmath.Vec2f) Item {
-	item, _ := r.nearestNeighbor(pos, r.root, nil, vmath.Infinity)
+	item, _ := r.nearestNeighbor(pos, r.root, nil, math32.Infinity)
 	return item
 }
 
@@ -254,7 +255,7 @@ func pruneNodes(pos vmath.Vec2f, nearestSqDist float32, sortedNodes nodesByDista
 	minMinMaxDist := nearestSqDist
 	for _, node := range sortedNodes.nodes {
 		minMaxDist := minMaxDist(pos, node.bounds)
-		minMinMaxDist = vmath.Min(minMaxDist, minMinMaxDist)
+		minMinMaxDist = math32.Min(minMaxDist, minMinMaxDist)
 	}
 	// Remove all nodes that are farther away than 'minMinMaxDist'.
 	cnt := 0
@@ -307,7 +308,7 @@ func minMaxDist(pos vmath.Vec2f, r vmath.Rectf) float32 {
 		S - dM[0]*dM[0] + dm[0]*dm[0],
 		S - dM[1]*dM[1] + dm[1]*dm[1],
 	}
-	return vmath.Min(d[0], d[1])
+	return math32.Min(d[0], d[1])
 }
 
 // IterateAllItems calls the provided function for every stored item until true (=abort) is returned.
